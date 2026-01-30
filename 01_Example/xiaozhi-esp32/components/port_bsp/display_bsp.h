@@ -53,16 +53,16 @@ class ePaperPort {
     int                 cs_;
     int                 rst_;
     int                 busy_;
-    int                 width_;
-    int                 height_;
-    int                 scale_MaxWidth_;
-    int                 scale_MaxHeight_;
+    uint16_t            width_;
+    uint16_t            height_;
+    uint16_t            scale_MaxWidth_;
+    uint16_t            scale_MaxHeight_;
     uint8_t            *DispBuffer = NULL;
     uint8_t            *RotationBuffer = NULL;
     uint8_t            *BmpSrcBuffer = NULL;
     int                 DisplayLen;
-    int                 src_width;
-    int                 src_height;
+    uint16_t            src_width;
+    uint16_t            src_height;
     uint8_t Rotation = 0;                          //0:0 1:90 2:180 3:270
     uint8_t mirrx = 0;                             
     uint8_t mirry = 0;
@@ -88,7 +88,7 @@ class ePaperPort {
     void EPD_PixelRotate();
 
   public:
-    ePaperPort(ImgDecodeDither &dither,int mosi, int scl, int dc, int cs, int rst, int busy, int width, int height, int scale_MaxWidth, int scale_MaxHeight, spi_host_device_t spihost = SPI3_HOST);
+    ePaperPort(ImgDecodeDither &dither,int mosi, int scl, int dc, int cs, int rst, int busy, uint16_t width, uint16_t height, uint16_t scale_MaxWidth, uint16_t scale_MaxHeight, spi_host_device_t spihost = SPI3_HOST);
     ~ePaperPort();
 
     void EPD_Init();

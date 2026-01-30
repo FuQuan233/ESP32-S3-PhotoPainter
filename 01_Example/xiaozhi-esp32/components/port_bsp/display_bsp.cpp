@@ -4,7 +4,7 @@
 #include <esp_log.h>
 #include "display_bsp.h"
 
-ePaperPort::ePaperPort(ImgDecodeDither &dither,int mosi, int scl, int dc, int cs, int rst, int busy, int width, int height,int scale_MaxWidth, int scale_MaxHeight, spi_host_device_t spihost) : 
+ePaperPort::ePaperPort(ImgDecodeDither &dither,int mosi, int scl, int dc, int cs, int rst, int busy, uint16_t width, uint16_t height,uint16_t scale_MaxWidth, uint16_t scale_MaxHeight, spi_host_device_t spihost) : 
 dither_(dither),
 mosi_(mosi), 
 scl_(scl), 
@@ -303,13 +303,7 @@ uint8_t* ePaperPort::EPD_ParseBMPImage(const char *path) {
     fread(&bmpFileHeader, sizeof(BMPFILEHEADER), 1, fp);  
     fread(&bmpInfoHeader, sizeof(BMPINFOHEADER), 1, fp);
 
-    //ESP_LOGW(TAG, "BMPFILEHEADER:%d,BMPINFOHEADER:%d", sizeof(BMPFILEHEADER),sizeof(BMPINFOHEADER));
     ESP_LOGW(TAG, "(WIDTH:HEIGHT) = (%ld:%ld)", bmpInfoHeader.biWidth, bmpInfoHeader.biHeight);
-    //if (bmpInfoHeader.biWidth * bmpInfoHeader.biHeight != 384000) {
-    //    ESP_LOGE(TAG, "Incorrect resolution");
-    //    fclose(fp);
-    //    return NULL;
-    //}
     src_width  = bmpInfoHeader.biWidth;
     src_height = bmpInfoHeader.biHeight;
     int readbyte = bmpInfoHeader.biBitCount;
@@ -327,7 +321,7 @@ uint8_t* ePaperPort::EPD_ParseBMPImage(const char *path) {
     }
     fclose(fp);
     if(src_width == 480)
-    {Rotation = 1;src_width = 800;src_height = 480;}
+    {Rotation = 3;src_width = 800;src_height = 480;}
     else 
     {Rotation = 2;}
     return BmpSrcBuffer;

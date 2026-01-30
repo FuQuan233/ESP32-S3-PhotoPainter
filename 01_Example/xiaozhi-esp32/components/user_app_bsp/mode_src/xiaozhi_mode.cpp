@@ -261,6 +261,7 @@ void ai_IMG_LoopTask(void *arg) {
     for (;;) {
         EventBits_t even = xEventGroupWaitBits(ai_IMG_LoopGroup, (0x01), pdFALSE, pdFALSE, portMAX_DELAY);
         if (get_bit_button(even, 0)) {
+            vTaskDelay(pdMS_TO_TICKS(1000));
             xEventGroupSetBits(epaper_groups, set_bit_button(3)); 
         }
         vTaskDelay(pdMS_TO_TICKS(img_loopTimer));
