@@ -3,6 +3,7 @@
 #include <freertos/FreeRTOS.h>
 #include <esp_log.h>
 #include "display_bsp.h"
+// #include "power_bsp.h"
 
 ePaperPort::ePaperPort(ImgDecodeDither &dither,int mosi, int scl, int dc, int cs, int rst, int busy, uint16_t width, uint16_t height,uint16_t scale_MaxWidth, uint16_t scale_MaxHeight, spi_host_device_t spihost) : 
 dither_(dither),
@@ -347,6 +348,74 @@ uint8_t ePaperPort::EPD_ColorToePaperColor(uint8_t b,uint8_t g,uint8_t r) {
         return ColorYellow;
     }
     return ColorWhite;
+}
+
+uint8_t* ePaperPort::EPD_ParseBMPImageFromMemory(uint8_t *bmp_data, uint32_t data_len) {
+    if (!bmp_data || data_len < 54) {  // BMP header minimum size
+        ESP_LOGE(TAG, "Invalid BMP data");
+        return NULL;
+    }
+
+    // Parse BMP header from memory
+    BMPFILEHEADER *bmpFileHeader = (BMPFILEHEADER *)bmp_data;
+    BMPINFOHEADER *bmpInfoHeader = (BMPINFOHEADER *)(bmp_data + sizeof(BMPFILEHEADER));
+
+    ESP_LOGW(TAG, "(WIDTH:HEIGHT) = (%ld:%ld)", bmpInfoHeader->biWidth, bmpInfoHeader->biHeight);
+    src_width  = bmpInfoHeader->biWidth;
+    src_height = bmpInfoHeader->biHeight;
+    int readbyte = bmpInfoHeader->biBitCount;
+    
+    if (readbyte != 24) {
+        ESP_LOGE(TAG, "Bmp image is not 24 bitmap!");
+        return NULL;
+    }
+
+    // Calculate pixel data offset and size
+    uint32_t pixelDataOffset = bmpFileHeader->bOffset;
+    if (pixelDataOffset >= data_len) {
+        ESP_LOGE(TAG, "Invalid BMP pixel data offset");
+        return NULL;
+    }
+
+    // Copy pixel data to buffer
+    uint8_t *pixelData = bmp_data + pixelDataOffset;
+    int rowBytes = src_width * 3;
+    
+    for (int y = src_height - 1; y >= 0; y--) {
+        uint8_t *rowPtr = BmpSrcBuffer + y * rowBytes;
+        uint8_t *srcPtr = pixelData + (src_height - 1 - y) * rowBytes;
+        memcpy(rowPtr, srcPtr, rowBytes);
+    }
+    
+    if(src_width == 480) {
+        Rotation = 3;
+        src_width = 800;
+        src_height = 480;
+    } else {
+        Rotation = 2;
+    }
+    
+    return BmpSrcBuffer;
+}
+
+void ePaperPort::EPD_MemoryBmpShakingColor(uint8_t *bmp_data, uint32_t data_len, uint16_t x_start, uint16_t y_start) {
+    uint8_t r, g, b;
+    uint8_t *buffer = EPD_ParseBMPImageFromMemory(bmp_data, data_len);
+    if (NULL == buffer) {
+        return;
+    }
+    
+    uint8_t* scapeBuffer = (uint8_t*)buffer;
+    for (int y = 0; y < src_height; y++) {
+        for (int x = 0; x < src_width; x++) {
+            int idx = (y * src_width + x) * 3;
+            b = scapeBuffer[idx + 0];
+            g = scapeBuffer[idx + 1];
+            r = scapeBuffer[idx + 2];
+            uint8_t color = EPD_ColorToePaperColor(b, g, r);
+            EPD_SetPixel(x_start + x, y_start + y, color);
+        }
+    }
 }
 
 void ePaperPort::EPD_SDcardBmpShakingColor(const char *path,uint16_t x_start, uint16_t y_start) {
@@ -772,4 +841,16 @@ void ePaperPort::EPD_Rotate90CW_Fast(const uint8_t* src, uint8_t* dst, int width
             EPD_SetPixel4(dst, height, nx1, ny1, p1);
         }
     }
+}
+
+void ePaperPort::EPD_PowerOffEDP()
+{
+    ESP_LOGI(TAG, "Set EPD PowerOff");
+    // disablePowerOutput(uint8_t channel)
+}
+
+void ePaperPort::EPD_PowerOnEDP()
+{
+    ESP_LOGI(TAG, "Set EPD PowerOn");
+
 }

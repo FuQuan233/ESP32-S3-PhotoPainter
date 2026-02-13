@@ -4,6 +4,7 @@ idf_component_register(
   "mode_src/Network_mode.cpp"
   "mode_src/Basic_mode.cpp" 
   "mode_src/Mode_Selection.cpp"
+  "mode_src/Photo_Daily_mode.cpp"
   "user_app.cpp" 
   PRIV_REQUIRES 
   driver        

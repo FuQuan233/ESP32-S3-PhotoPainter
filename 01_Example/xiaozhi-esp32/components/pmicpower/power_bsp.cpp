@@ -104,6 +104,30 @@ void Custom_PmicRegisterInit(void) {
     axp2101.setChargerTerminationCurr(XPOWERS_AXP2101_CHG_ITERM_50MA);
 }
 
+// 获取充电状态字符串
+static const char* get_charge_status_string(uint8_t status) {
+    switch (status) {
+        case XPOWERS_AXP2101_CHG_TRI_STATE:  return "tri_charge";
+        case XPOWERS_AXP2101_CHG_PRE_STATE:  return "pre_charge";
+        case XPOWERS_AXP2101_CHG_CC_STATE:   return "constant_charge";
+        case XPOWERS_AXP2101_CHG_CV_STATE:   return "constant_voltage";
+        case XPOWERS_AXP2101_CHG_DONE_STATE: return "charge_done";
+        case XPOWERS_AXP2101_CHG_STOP_STATE: return "not_charging";
+        default: return "unknown";
+    }
+}
+
+// 获取电池信息
+battery_info_t Get_BatteryInfo(void) {
+    battery_info_t info = {};
+    info.voltage_mv = axp2101.getBattVoltage();
+    info.percent = axp2101.getBatteryPercent();
+    info.is_charging = axp2101.isCharging();
+    info.charge_status = axp2101.getChargerStatus();
+    info.charge_status_str = get_charge_status_string(info.charge_status);
+    return info;
+}
+
 void Axp2101_isChargingTask(void *arg) {
     for (;;) {
         vTaskDelay(pdMS_TO_TICKS(20000));
@@ -125,4 +149,84 @@ void Axp2101_isChargingTask(void *arg) {
         ESP_LOGI(TAG, "getBattVoltage: %dmV", axp2101.getBattVoltage());
         ESP_LOGI(TAG, "getBatteryPercent: %d%%", axp2101.getBatteryPercent());
     }
+}
+
+bool enablePowerOutput(uint8_t channel)
+{
+    switch (channel) {
+    case XPOWERS_DCDC1:
+        return axp2101.enableDC1();
+    case XPOWERS_DCDC2:
+        return axp2101.enableDC2();
+    case XPOWERS_DCDC3:
+        return axp2101.enableDC3();
+    case XPOWERS_DCDC4:
+        return axp2101.enableDC4();
+    case XPOWERS_DCDC5:
+        return axp2101.enableDC5();
+    case XPOWERS_ALDO1:
+        return axp2101.enableALDO1();
+    case XPOWERS_ALDO2:
+        return axp2101.enableALDO2();
+    case XPOWERS_ALDO3:
+        return axp2101.enableALDO3();
+    case XPOWERS_ALDO4:
+        return axp2101.enableALDO4();
+    case XPOWERS_BLDO1:
+        return axp2101.enableBLDO1();
+    case XPOWERS_BLDO2:
+        return axp2101.enableBLDO2();
+    case XPOWERS_DLDO1:
+        return axp2101.enableDLDO1();
+    case XPOWERS_DLDO2:
+        return axp2101.enableDLDO2();
+    case XPOWERS_VBACKUP:
+        return axp2101.enableButtonBatteryCharge();
+    default:
+        break;
+    }
+    return false;
+}
+
+bool disablePowerOutput(uint8_t channel)
+{
+    if (axp2101.getProtectedChannel(channel)) {
+        log_e("Failed to disable the power channel, the power channel has been protected");
+        return false;
+    }
+    switch (channel) {
+    case XPOWERS_DCDC1:
+        return axp2101.disableDC1();
+    case XPOWERS_DCDC2:
+        return axp2101.disableDC2();
+    case XPOWERS_DCDC3:
+        return axp2101.disableDC3();
+    case XPOWERS_DCDC4:
+        return axp2101.disableDC4();
+    case XPOWERS_DCDC5:
+        return axp2101.disableDC5();
+    case XPOWERS_ALDO1:
+        return axp2101.disableALDO1();
+    case XPOWERS_ALDO2:
+        return axp2101.disableALDO2();
+    case XPOWERS_ALDO3:
+        return axp2101.disableALDO3();
+    case XPOWERS_ALDO4:
+        return axp2101.disableALDO4();
+    case XPOWERS_BLDO1:
+        return axp2101.disableBLDO1();
+    case XPOWERS_BLDO2:
+        return axp2101.disableBLDO2();
+    case XPOWERS_DLDO1:
+        return axp2101.disableDLDO1();
+    case XPOWERS_DLDO2:
+        return axp2101.disableDLDO2();
+    case XPOWERS_VBACKUP:
+        return axp2101.disableButtonBatteryCharge();
+    case XPOWERS_CPULDO:
+        return axp2101.disableCPUSLDO();
+    default:
+        break;
+    }
+    return false;
 }

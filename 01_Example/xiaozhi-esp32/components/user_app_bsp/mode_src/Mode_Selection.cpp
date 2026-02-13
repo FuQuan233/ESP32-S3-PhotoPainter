@@ -34,6 +34,10 @@ static void key1_button_user_Task(void *arg) {
                     ret = nvs_set_u8(my_handle, "PhotPainterMode", 0x03);
                     ESP_ERROR_CHECK(ret);
                     vTaskDelay(pdMS_TO_TICKS(2));
+                } else if (Mode == 4) {
+                    ret = nvs_set_u8(my_handle, "PhotPainterMode", 0x05);
+                    ESP_ERROR_CHECK(ret);
+                    vTaskDelay(pdMS_TO_TICKS(2));
                 }
                 ret = nvs_set_u8(my_handle, "Mode_Flag", 0x01);
                 ESP_ERROR_CHECK(ret);
@@ -54,7 +58,7 @@ static void key1_button_user_Task(void *arg) {
             }
         } else if (get_bit_button(even, 0)) { 
             Mode++;
-            if (Mode > 3) {
+            if (Mode > 4) {
                 Mode = 1;
             }
             if (Mode == 1) {
@@ -63,6 +67,8 @@ static void key1_button_user_Task(void *arg) {
                 xEventGroupSetBits(audio_groups, set_bit_button(2));
             } else if (Mode == 3) {
                 xEventGroupSetBits(audio_groups, set_bit_button(3));
+            } else if (Mode == 4) {
+                xEventGroupSetBits(audio_groups, set_bit_button(4));
             }
         }
     }
@@ -81,6 +87,8 @@ static void audio_user_Task(void *arg) {
             value = 2;
         } else if (get_bit_button(even, 3)) {
             value = 3;
+        } else if (get_bit_button(even, 4)) {
+            value = 4;
         }
         int      bytes_write = 0;
         int      bytes_sizt  = AudioPort->Codec_GetMusicSizt(value);

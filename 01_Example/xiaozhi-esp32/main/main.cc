@@ -72,5 +72,8 @@ extern "C" void app_main(void) {
     } else if (read_value == 0x04) {
         ESP_LOGW("main","Enter Mode Selection");
         Mode_Selection_Init();
+    } else if (read_value == 0x05) {
+        ESP_LOGW("main","Enter Photo Daily mode");
+        User_PhotoDaily_mode_app_init();
     }
 }

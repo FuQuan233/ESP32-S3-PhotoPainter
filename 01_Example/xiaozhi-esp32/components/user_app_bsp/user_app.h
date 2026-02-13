@@ -35,5 +35,6 @@ extern SemaphoreHandle_t ai_img_while_semap;
 
 void User_Basic_mode_app_init(void);
 void User_Network_mode_app_init(void);
+void User_PhotoDaily_mode_app_init(void);
 void Mode_Selection_Init(void);
 uint8_t Get_CurrentlyNetworkMode(void);

@@ -25,12 +25,7 @@ idf_component_register(
     INCLUDE_DIRS 
     "./" 
     "./src/multi_button"
-    "./src/fonts"
-    EMBED_FILES 
-    "pcm_src/mode.pcm"
-    "pcm_src/mode_1.pcm"
-    "pcm_src/mode_2.pcm"
-    "pcm_src/mode_3.pcm")
+    "./src/fonts")
 set_source_files_properties(
     sdcard_bsp.cpp
     PROPERTIES

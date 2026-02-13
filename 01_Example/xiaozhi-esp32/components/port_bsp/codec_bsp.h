@@ -23,6 +23,8 @@ public:
     uint8_t Codec_ClosePlay();
     int Codec_GetMusicSizt(uint8_t value);
     uint8_t* Codec_GetMusicData(uint8_t value);
+    const uint8_t* Codec_GetCompressedModeAudio(uint8_t value, size_t* size);  // 获取压缩的模式音频数据
+    uint8_t* Codec_GetDecodedModeAudio(uint8_t value, int* pcm_size);  // 获取解码后的PCM数据
     void Codec_SetCodecReg(const char * str,uint8_t reg,uint8_t data);
     uint8_t Codec_GetCodecReg(const char *str, uint8_t reg);
 };
