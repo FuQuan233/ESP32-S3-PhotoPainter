@@ -75,7 +75,6 @@ static void key1_button_user_Task(void *arg) {
 }
 
 static void audio_user_Task(void *arg) {
-    AudioPort->Codec_PlayInfoAudio();
     int value = 0;
     for (;;) {
         EventBits_t even = xEventGroupWaitBits(audio_groups, set_bit_all, pdTRUE, pdFALSE, pdMS_TO_TICKS(3000));
@@ -90,14 +89,7 @@ static void audio_user_Task(void *arg) {
         } else if (get_bit_button(even, 4)) {
             value = 4;
         }
-        int      bytes_write = 0;
-        int      bytes_sizt  = AudioPort->Codec_GetMusicSizt(value);
-        uint8_t *Music_ptr   = AudioPort->Codec_GetMusicData(value);
-        do {
-            AudioPort->Codec_PlayBackWrite(Music_ptr, 256);
-            Music_ptr += 256;
-            bytes_write += 256;
-        } while ((bytes_write < bytes_sizt) && (gpio_get_level(GPIO_NUM_4)));
+        AudioPort->Codec_PlayModeAudio(value);
     }
 }
 
@@ -106,5 +98,5 @@ void Mode_Selection_Init(void) {
     audio_groups = xEventGroupCreate();
     xEventGroupSetBits(audio_groups, set_bit_button(0));
     xTaskCreate(key1_button_user_Task, "key1_button_user_Task", 4 * 1024, NULL, 3, NULL);
-    xTaskCreate(audio_user_Task, "audio_user_Task", 4 * 1024, NULL, 3, NULL);
+    xTaskCreate(audio_user_Task, "audio_user_Task", 16 * 1024, NULL, 3, NULL);
 }

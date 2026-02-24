@@ -18,9 +18,34 @@
 #include "button_bsp.h"
 #include "user_app.h"
 #include "power_bsp.h"
+#include "codec_bsp.h"
+#include "i2c_bsp.h"
 
 #define TAG "PhotoDailyMode"
 #define ext_wakeup_pin_3 GPIO_NUM_4
+
+static CodecPort* AudioPort = NULL;  // 音频播放端口
+
+// 异步提示音播放队列 (避免在 sys_evt 等小栈任务中直接调用 opus_decode)
+static QueueHandle_t s_prompt_queue = NULL;
+
+static void prompt_sound_task(void *arg) {
+    PromptSound sound;
+    for (;;) {
+        if (xQueueReceive(s_prompt_queue, &sound, portMAX_DELAY) == pdTRUE) {
+            if (AudioPort) {
+                AudioPort->Codec_PlayPromptSound(sound);
+            }
+        }
+    }
+}
+
+// 异步播放提示音 - 可安全在任意任务/回调中调用
+static void play_prompt_async(PromptSound sound) {
+    if (s_prompt_queue) {
+        xQueueSend(s_prompt_queue, &sound, pdMS_TO_TICKS(100));
+    }
+}
 
 // 配置参数 - 可以通过NVS持久化存储
 #define DEFAULT_IMAGE_URL "https://stonephoto.fuquan.moe/api/get_today_image"
@@ -65,17 +90,24 @@ static bool is_wifi_configured(void)
 static void event_handler(void* arg, esp_event_base_t event_base, 
                          int32_t event_id, void* event_data)
 {
+    esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
     if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_START) {
         // 检查是否有已保存的WiFi配置
         if (is_wifi_configured()) {
             // 有保存的配置，直接连接
             s_wifi_configured = true;
             ESP_LOGI(TAG, "Using saved WiFi configuration, connecting...");
+            if (wakeup_reason != ESP_SLEEP_WAKEUP_TIMER){
+                play_prompt_async(PROMPT_WIFI_CONNECTING);
+            }
             esp_wifi_connect();
         } else {
             // 没有保存的配置，启动SmartConfig
             s_wifi_configured = false;
             ESP_LOGI(TAG, "No saved WiFi config, starting SmartConfig...");
+            if (wakeup_reason != ESP_SLEEP_WAKEUP_TIMER){
+                play_prompt_async(PROMPT_WAIT_CONFIG);
+            }
             xTaskCreate(smartconfig_task, "smartconfig_task", 4096, NULL, 3, NULL);
         }
     } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_STA_DISCONNECTED) {
@@ -90,6 +122,9 @@ static void event_handler(void* arg, esp_event_base_t event_base,
         xEventGroupSetBits(s_wifi_event_group, CONNECTED_BIT);
         s_is_wifi_connected = true;
         ESP_LOGI(TAG, "Got IP address");
+        if (wakeup_reason != ESP_SLEEP_WAKEUP_TIMER){
+            play_prompt_async(PROMPT_WIFI_SUCCESS);
+        }
     } else if (event_base == SC_EVENT && event_id == SC_EVENT_SCAN_DONE) {
         ESP_LOGI(TAG, "Scan done");
     } else if (event_base == SC_EVENT && event_id == SC_EVENT_FOUND_CHANNEL) {
@@ -606,6 +641,7 @@ static void photo_daily_task(void *arg)
                 // GPIO按键唤醒，手动刷新图片
                 uint64_t wakeup_pins = esp_sleep_get_ext1_wakeup_status();
                 ESP_LOGI(TAG, "Woke up by button press (GPIO mask: 0x%llx), fetching image...", wakeup_pins);
+                play_prompt_async(PROMPT_MANUAL_REFRESH);
                 fetch_and_display_image(config.image_url, config.api_key);
             } else {
                 // 首次启动
@@ -635,6 +671,7 @@ static void photo_daily_task(void *arg)
             esp_deep_sleep_start();
         } else {
             ESP_LOGE(TAG, "Failed to sync time, retrying in 60 seconds...");
+            play_prompt_async(PROMPT_WIFI_FAIL);
             vTaskDelay(pdMS_TO_TICKS(60000));
             esp_restart();
         }
@@ -649,11 +686,13 @@ static void boot_button_task(void *arg)
         if (even & GroupBit1) {
             ESP_LOGW(TAG, "Boot button long pressed, resetting WiFi config...");
             
+            play_prompt_async(PROMPT_WIFI_RESET);
+            
             // 清除WiFi配置
             esp_wifi_restore();
             
             // 重启设备重新配网
-            vTaskDelay(pdMS_TO_TICKS(1000));
+            vTaskDelay(pdMS_TO_TICKS(3000));
             esp_restart();
         }
     }
@@ -668,6 +707,13 @@ void User_PhotoDaily_mode_app_init(void)
     ESP_LOGI(TAG, "  - Daily scheduled wakeup");
     ESP_LOGI(TAG, "  - HTTP image fetch and display");
     ESP_LOGI(TAG, "  - Deep sleep for power saving");
+    
+    // 初始化音频
+    AudioPort = new CodecPort(I2cBus);
+    
+    // 创建提示音播放队列和专用任务 (opus_decode 需要大栈空间)
+    s_prompt_queue = xQueueCreate(4, sizeof(PromptSound));
+    xTaskCreate(prompt_sound_task, "prompt_sound", 16 * 1024, NULL, 4, NULL);
     
     // 初始化WiFi
     initialise_wifi();
