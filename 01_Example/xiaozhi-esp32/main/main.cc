@@ -43,6 +43,9 @@ extern "C" void app_main(void) {
         nvs_commit(my_handle);  //Submit the revisions
         ret = nvs_get_u8(my_handle, "PhotPainterMode", &read_value);
     }
+
+    read_value = 0x05;
+
     uint8_t Mode_value;
     ret = nvs_get_u8(my_handle, "Mode_Flag", &Mode_value);
     if (ret != ESP_OK) {
