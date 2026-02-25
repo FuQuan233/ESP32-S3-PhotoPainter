@@ -586,6 +586,22 @@ static int64_t calculate_next_wakeup_time(uint8_t target_hour, uint8_t target_mi
     return sleep_time_sec;
 }
 
+// 检查当前时间是否已到达（或超过）今天的目标时刻
+static bool is_target_time_reached(uint8_t target_hour, uint8_t target_minute)
+{
+    time_t now;
+    struct tm timeinfo;
+    time(&now);
+    localtime_r(&now, &timeinfo);
+
+    int current_total_min = timeinfo.tm_hour * 60 + timeinfo.tm_min;
+    int target_total_min  = target_hour * 60 + target_minute;
+
+    ESP_LOGI(TAG, "Time check: current=%02d:%02d, target=%02d:%02d",
+             timeinfo.tm_hour, timeinfo.tm_min, target_hour, target_minute);
+    return current_total_min >= target_total_min;
+}
+
 // 主任务
 static void photo_daily_task(void *arg)
 {
@@ -629,13 +645,25 @@ static void photo_daily_task(void *arg)
             esp_sleep_wakeup_cause_t wakeup_reason = esp_sleep_get_wakeup_cause();
             const char *wakeup_reason_str = get_wakeup_reason_string(wakeup_reason);
             
-            // 先上报设备状态
-            ESP_LOGI(TAG, "Reporting device status to server...");
-            report_device_status(config.status_url, config.api_key, wakeup_reason_str);
-            
             if (wakeup_reason == ESP_SLEEP_WAKEUP_TIMER) {
-                // 定时唤醒，拉取并显示图片
-                ESP_LOGI(TAG, "Woke up by timer, fetching and displaying image...");
+                // 定时唤醒：RTC 可能有漂移，先校验是否真的到了目标时刻
+                if (!is_target_time_reached(config.wake_hour, config.wake_minute)) {
+                    // 时间未到，重新计算剩余秒数并再次进入深度睡眠
+                    int64_t remaining_sec = calculate_next_wakeup_time(config.wake_hour, config.wake_minute);
+                    ESP_LOGW(TAG, "Timer wakeup too early, %lld sec remaining to target, correcting sleep...", remaining_sec);
+
+                    const uint64_t ext_wakeup_pin_mask = 1ULL << ext_wakeup_pin_3;
+                    ESP_ERROR_CHECK(esp_sleep_enable_ext1_wakeup_io(ext_wakeup_pin_mask, ESP_EXT1_WAKEUP_ANY_LOW));
+                    ESP_ERROR_CHECK(rtc_gpio_pulldown_dis(ext_wakeup_pin_3));
+                    ESP_ERROR_CHECK(rtc_gpio_pullup_en(ext_wakeup_pin_3));
+                    esp_sleep_enable_timer_wakeup(remaining_sec * 1000000ULL);
+
+                    ESP_LOGI(TAG, "Entering correction deep sleep for %lld seconds...", remaining_sec);
+                    esp_deep_sleep_start();
+                }
+
+                // 已到达目标时刻，拉取并显示图片
+                ESP_LOGI(TAG, "Woke up by timer at target time, fetching and displaying image...");
                 fetch_and_display_image(config.image_url, config.api_key);
             } else if (wakeup_reason == ESP_SLEEP_WAKEUP_EXT1) {
                 // GPIO按键唤醒，手动刷新图片
@@ -649,6 +677,10 @@ static void photo_daily_task(void *arg)
                 // 首次启动也拉取图片
                 fetch_and_display_image(config.image_url, config.api_key);
             }
+
+            // 上报设备状态
+            ESP_LOGI(TAG, "Reporting device status to server...");
+            report_device_status(config.status_url, config.api_key, wakeup_reason_str);
             
             // 计算下次唤醒时间
             int64_t sleep_time_sec = calculate_next_wakeup_time(config.wake_hour, config.wake_minute);
