@@ -3,7 +3,7 @@
 #include <freertos/FreeRTOS.h>
 #include <esp_log.h>
 #include "display_bsp.h"
-// #include "power_bsp.h"
+#include "../pmicpower/power_bsp.h"
 
 ePaperPort::ePaperPort(ImgDecodeDither &dither,int mosi, int scl, int dc, int cs, int rst, int busy, uint16_t width, uint16_t height,uint16_t scale_MaxWidth, uint16_t scale_MaxHeight, spi_host_device_t spihost) : 
 dither_(dither),
@@ -166,6 +166,10 @@ void ePaperPort::EPD_TurnOnDisplay(void) {
     EPD_SendCommand(0x02); // POWER_OFF
     EPD_SendData(0X00);
     EPD_LoopBusy();
+
+    vTaskDelay(pdMS_TO_TICKS(1000));
+
+    EPD_PowerOffEDP();
 }
 
 void ePaperPort::Set_Rotation(uint8_t rot) {
@@ -178,6 +182,9 @@ void ePaperPort::Set_Mirror(uint8_t mirr_x,uint8_t mirr_y) {
 }
 
 void ePaperPort::EPD_Init() {
+    EPD_PowerOnEDP();
+    vTaskDelay(pdMS_TO_TICKS(1000));
+
     EPD_Reset();
     EPD_LoopBusy();
     vTaskDelay(pdMS_TO_TICKS(50));
@@ -846,11 +853,11 @@ void ePaperPort::EPD_Rotate90CW_Fast(const uint8_t* src, uint8_t* dst, int width
 void ePaperPort::EPD_PowerOffEDP()
 {
     ESP_LOGI(TAG, "Set EPD PowerOff");
-    // disablePowerOutput(uint8_t channel)
+    disablePowerOutput(XPOWERS_ALDO4);
 }
 
 void ePaperPort::EPD_PowerOnEDP()
 {
     ESP_LOGI(TAG, "Set EPD PowerOn");
-
+    enablePowerOutput(XPOWERS_ALDO4);
 }

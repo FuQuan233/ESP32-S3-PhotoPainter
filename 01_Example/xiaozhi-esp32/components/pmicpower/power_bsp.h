@@ -1,6 +1,7 @@
 #pragma once
 
 #include "i2c_bsp.h"
+#include "src/XPowersLib.h"
 #include <cstdint>
 #include <stdbool.h>
 
