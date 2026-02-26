@@ -99,9 +99,11 @@ void Custom_PmicRegisterInit(void) {
         ESP_LOGW("axp2101_init_log","Set ALDO4 to output 3V3");
     }
 
-    axp2101.setPrechargeCurr(XPOWERS_AXP2101_PRECHARGE_200MA);       // 5000mAh battery: 200mA precharge
-    axp2101.setChargerConstantCurr(XPOWERS_AXP2101_CHG_CUR_1000MA);  // 5000mAh battery: 1000mA (0.2C)
-    axp2101.setChargerTerminationCurr(XPOWERS_AXP2101_CHG_ITERM_200MA); // 5000mAh battery: 200mA termination
+    axp2101.setChargeTargetVoltage(XPOWERS_AXP2101_CHG_VOL_4V2);         // 3.7V Li-ion: charge to 4.2V
+    axp2101.setSysPowerDownVoltage(3000);                                  // 3.7V Li-ion: discharge cutoff 3.0V
+    axp2101.setPrechargeCurr(XPOWERS_AXP2101_PRECHARGE_200MA);            // 5000mAh battery: 200mA precharge
+    axp2101.setChargerConstantCurr(XPOWERS_AXP2101_CHG_CUR_1000MA);      // 5000mAh battery: 1000mA (0.2C)
+    axp2101.setChargerTerminationCurr(XPOWERS_AXP2101_CHG_ITERM_200MA);  // 5000mAh battery: 200mA termination
 }
 
 // 获取充电状态字符串
